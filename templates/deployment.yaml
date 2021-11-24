@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "freeradius.fullname" . }}
+  labels:
+    {{- include "freeradius.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "freeradius.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "freeradius.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "freeradius.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.debug }}
+          args:
+            - "-X"
+          {{- end }}
+          env:
+            {{- range .Values.configuration.proxy.homeServers }}
+            - name: {{ include "freeradius.homeserver.secret.env" . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secret.secretKeyRef.name }}
+                  key: {{ .secret.secretKeyRef.key }}
+            {{- end }}
+            {{- range .Values.configuration.clients }}
+            - name: {{ include "freeradius.client.secret.env" . }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secret.secretKeyRef.name }}
+                  key: {{ .secret.secretKeyRef.key }}
+            {{- end }}
+          ports:
+            - name: auth-udp
+              containerPort: 1812
+              protocol: UDP
+            - name: acct-udp
+              containerPort: 1813
+              protocol: UDP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /etc/raddb/radiusd.conf
+              name: configuration
+              subPath: radiusd.conf
+            - mountPath: /etc/raddb/proxy.conf
+              name: configuration
+              subPath: proxy.conf
+            - mountPath: /etc/raddb/clients.conf
+              name: configuration
+              subPath: clients.conf
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: configuration
+          configMap:
+            name: {{ include "freeradius.fullname" . }}

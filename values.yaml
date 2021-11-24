@@ -1,0 +1,150 @@
+# Default values for freeradius.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: freeradius/freeradius-server
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+debug: true
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+configuration:
+  maxRequestTime: 30
+  cleanupDelay: 5
+  maxRequests: 16384
+  hostnameLookups: no
+  log:
+    destination: stdout
+    colourise: no
+    strippedNames: no
+    authAccept: no
+    authReject: no
+    authBadpass: no
+    authGoodpass: no
+    msgDenied: "You are already logged in - access denied"
+    suppressSecrets: no
+  security:
+    rejectDelay: 1
+    statusServer: yes
+  proxy:
+    enabled: yes
+    defaultFallback: no
+    homeServers:
+      - name: radius.example.com
+        type: auth
+        ipaddr: 10.0.0.1
+        ipv6addr: ::1
+        virtualServer: foo
+        port: 1812
+        proto: udp
+        secret:
+          secretKeyRef:
+            name: radius-server-secret
+            key: secret
+        responseWindow: 20
+        responseTimeouts: 1
+        zombiePeriod: 40
+        reviveInterval: 120
+        statusCheck: status-server
+        checkInterval: 30
+        checkTimeout: 4
+        numAnswersToAlive: 3
+        maxOutstanding: 65536
+        coa:
+          irt: 2
+          mrt: 16
+          mrc: 5
+          mrd: 30
+        limit:
+          maxConnections: 16
+          maxRequests: 0
+          lifetime: 0
+          idleTimeout: 0
+    homeServerPools:
+      - name: pool.example.com
+        type: fail-over
+        homeServers:
+          - radius.example.com
+    realms:
+      - name: example2.com
+        authPool: pool.example.com
+#        acctPool: pool.example.com
+#        coaPool: pool.example.com
+        nostrip: false
+  clients:
+    - name: example.com
+      ipaddr: 10.0.0.1
+      proto: "*"
+      secret:
+        secretKeyRef:
+          name: radius-server-secret
+          key: secret
+      requireMessageAuthenticator: no
+      limit:
+        maxConnections: 16
+        lifetime: 0
+        idleTimeout: 0
+  threadPool:
+    startServers: 5
+    maxServers: 32
+    minSpareServers: 3
+    maxSpareServers: 10
