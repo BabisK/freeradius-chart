@@ -7,9 +7,13 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
+    - port: 1812
+      targetPort: auth-udp
+      protocol: UDP
+      name: auth-udp
+    - port: 1813
+      targetPort: acct-udp
+      protocol: UDP
+      name: acct-udp
   selector:
     {{- include "freeradius.selectorLabels" . | nindent 4 }}
